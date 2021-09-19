@@ -598,6 +598,21 @@ mongodb_create_keyfile() {
 mongodb_is_primary_node_initiated() {
     local node="${1:?node is required}"
     local result
+
+    info "Waiting 3 seconds to join an existing replica set..."
+    sleep 3
+    result=$(
+        mongodb_execute "$MONGODB_ROOT_USER" "$MONGODB_ROOT_PASSWORD" "admin" "127.0.0.1" "$MONGODB_PORT_NUMBER" <<EOF
+rs.status()
+EOF
+    )
+
+    if ! grep -q "\"code\" : 94" <<<"$result"; then
+        info "Primary node joined the Replica Set!"
+        return 0
+    fi
+    info "No Replica Set has been joined. Creating a new one..."
+
     result=$(
         mongodb_execute "$MONGODB_ROOT_USER" "$MONGODB_ROOT_PASSWORD" "admin" "127.0.0.1" "$MONGODB_PORT_NUMBER" <<EOF
 rs.initiate({"_id":"$MONGODB_REPLICA_SET_NAME", "members":[{"_id":0,"host":"$node:$MONGODB_PORT_NUMBER","priority":5}]})
